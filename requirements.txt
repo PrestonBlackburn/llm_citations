@@ -1,0 +1,7 @@
+accelerate
+sentencepiece
+transformers
+outlines[transformers]
+openai
+pydantic
+huggingface_hub

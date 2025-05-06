@@ -1,0 +1,4 @@
+*.ps1
+*.env
+models/**
+__pycache__/**
