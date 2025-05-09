@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Multiple Citation Tooltips</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .citationTooltip {
+      transition: opacity 0.2s ease;
+    }
+  </style>
+</head>
+<body class="p-10 text-gray-800">
+
+    <p class="text-lg">
+
+        
+        Some text with citations 
+        <sup class="text-blue-600 cursor-pointer citation" data-citation-id="citation-1">[1]</sup> 
+        and 
+        <sup class="text-blue-600 cursor-pointer citation" data-citation-id="citation-1-2">[1,2]</sup>.
+    </p>
+
+      <!-- Hidden citation templates -->
+    <template id="citation-1">
+        **DesignToolsGrading.md**
+        ### Grading Criteria
+        
+        The project is worth a maximum of 2 points. You can receive partial credit...
+    </template>
+    
+    <template id="citation-1-2">
+        **DesignToolsChallenge.md**
+        ### Grading Criteria
+        
+        The project is worth a maximum of 2 points...
+        
+        ---
+        
+        **DesignToolsGrading.md**
+        ### Requirements
+        
+        Your work will be graded based on the following requirements:
+        
+        1. A formal memo as your project retrospective...
+    </template>
+
+  <!-- Tooltip element -->
+  <div 
+    id="citationTooltip"
+    class="citationTooltip fixed z-50 hidden max-w-sm p-4 text-sm text-white bg-gray-800 rounded-lg shadow-lg"
+  ></div>
+
+  <script>
+
+    // Markdown-like to HTML
+    function renderMarkdown(text) {
+    return text
+        .split('\n\n').map(para =>
+        `<p class="mb-2">${para
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/### (.*?)<br>?/g, '<h3 class="font-bold mt-2">$1</h3>')
+            .replace(/# (.*?)<br>?/g, '<h3 class="font-bold mt-2">$1</h3>')
+            .replace(/# (.*?)<br>?/g, '<h3 class="font-bold mt-2">$1</h3>')
+            .replace(/\n/g, '<br>')}</p>`
+        ).join('');
+    }
+    const citationTooltip = document.getElementById("citationTooltip");
+
+    document.querySelectorAll(".citation").forEach(el => {
+        el.addEventListener("mouseover", () => {
+            const citationId = el.dataset.citationId;
+            const template = document.getElementById(citationId);
+            if (!template) return;
+
+            const rawText = template.innerHTML.trim();
+            const content = renderMarkdown(rawText);
+
+            citationTooltip.innerHTML = content;
+            citationTooltip.classList.remove("hidden");
+
+            const rect = el.getBoundingClientRect();
+            citationTooltip.style.top = `${window.scrollY + rect.bottom + 5}px`;
+            citationTooltip.style.left = `${window.scrollX + rect.left}px`;
+        });
+
+        el.addEventListener("mouseout", () => {
+            citationTooltip.classList.add("hidden");
+            citationTooltip.innerHTML = '';
+        });
+    });
+  </script>
+</body>
+</html>
