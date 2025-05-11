@@ -1,20 +1,25 @@
 # Playing around with streaming responses, structure, and post processing for linking
 
 import os
+import io
 import asyncio
 import time
 from typing import List, Union, Callable, AsyncGenerator, Dict
 import re
+import json
 import logging
 from openai import AsyncOpenAI
 from openai.types.chat import ParsedChatCompletion
 
+
 # few shot prompt construction
+from chat import ResponseWithCitations
 from few_shot_examples import (
     mock_query_vector_db, 
     get_context, 
     get_structures_for_rag_docs,
     get_few_shot_examples,
+    create_document_enum_cls
 )
 
 import logging
@@ -88,6 +93,55 @@ The project is worth a maximum of 2 points. You can receive partial credit..."""
     
 #     The project is worth a maximum of 2 points. You can receive partial credit...
 #   </template>
+
+async def mock_streaming_response(
+    response_text: str 
+) -> AsyncGenerator[str, None]:
+
+    text_stream = io.StringIO(response_text)
+    response_text = " "
+    token = ""
+    while response_text != "":
+        response_text = text_stream.read(1)
+        token += response_text
+        if response_text == " ":
+            yield token
+            token = ""
+
+class dotdict(dict):
+    # for simple mocking responses
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+async def mock_structured_streamer(
+        user_query:str,
+        prompt_context: str,
+        few_shot_examples: List[Dict[str,str]],
+        ResponseFormat: "ResponseWithCitations"
+) -> AsyncGenerator[Union[str, "MockParsedChatCompletion"], None]:
+    
+    DocumentEnum = await create_document_enum_cls(['DesignToolsGrading.md'])
+    
+    text_response = '{"response": "The grading criteria for the design tools project include: following memo standards with detailed and organized writing that explains your planning, completion, and reflection; and completing a project that closely mirrors the original document with appropriate updates demonstrating functional abilities with the tools practiced[1].","citations":["DesignToolsGrading.md"]}'
+    structured_response_results = ResponseFormat(
+        response = "The grading criteria for the design tools project include: following memo standards with detailed and organized writing that explains your planning, completion, and reflection; and completing a project that closely mirrors the original document with appropriate updates demonstrating functional abilities with the tools practiced[1].",
+        citations=[DocumentEnum.document_1]
+    )
+    stream = mock_streaming_response(text_response)
+    async for event in stream:
+        print(f"Mock stream event: {event}")
+        yield event
+
+
+    parsed_chat_completion = dotdict({
+        "choices": [
+            dotdict({"message": 
+                     dotdict({"parsed": structured_response_results})
+                    })
+                ]
+            })
+    yield parsed_chat_completion
 
 
 async def openai_structured_streamer(
@@ -183,4 +237,6 @@ async def structured_query(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     user_query = "What is the grading criteria for the design tools project?"
-    asyncio.run(structured_query(user_query, openai_structured_streamer))
+    # asyncio.run(structured_query(user_query, openai_structured_streamer))
+
+    asyncio.run(structured_query(user_query, mock_structured_streamer))
